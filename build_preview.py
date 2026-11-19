@@ -1,5 +1,6 @@
 """Build a standalone, offline sample preview: python build_preview.py."""
 from pathlib import Path
+import base64
 import json
 import re
 
@@ -15,6 +16,15 @@ def safe_script(text):
 def build():
     html = (WEB / "index.html").read_text(encoding="utf-8")
     css = (WEB / "styles.css").read_text(encoding="utf-8")
+    def embed_font(match):
+        relative = match.group(2).lstrip("/")
+        font_path = WEB / relative
+        if not font_path.resolve().is_relative_to((WEB / "fonts").resolve()) or font_path.suffix != ".woff2":
+            raise ValueError("Unexpected preview font path")
+        encoded = base64.b64encode(font_path.read_bytes()).decode("ascii")
+        return 'url("data:font/woff2;base64,' + encoded + '")'
+
+    css = re.sub(r"url\(([\"']?)(/?fonts/[^)\"']+\.woff2)\1\)", embed_font, css)
     demo = json.loads((WEB / "demo.json").read_text(encoding="utf-8"))
     embedded_data = (
         "window.MENU_LENS_OFFLINE_PREVIEW=true;window.MENU_LENS_DEMO_DATA="
@@ -22,7 +32,7 @@ def build():
         + ";"
     )
     html, count = re.subn(
-        r'<link\b[^>]*href=["\']/styles\.css["\'][^>]*>',
+        r'<link\b[^>]*href=["\']/styles\.css(?:\?[^"\']*)?["\'][^>]*>',
         lambda _: "<style>" + css + "</style>", html, count=1, flags=re.IGNORECASE,
     )
     if count != 1:
@@ -32,7 +42,7 @@ def build():
     scripts = []
 
     def embed_script(match):
-        name = match.group(1).lstrip("/")
+        name = match.group(1).split("?", 1)[0].lstrip("/")
         if name not in allowed:
             raise ValueError("Unexpected preview script: " + name)
         scripts.append(name)
@@ -47,7 +57,7 @@ def build():
     if set(scripts) != allowed:
         raise ValueError("Expected design.js, export.js and app.js in the preview")
     html = html.replace('href="/"', 'href="#"')
-    banner = '<div style="margin-top:20px;padding:12px 15px;border:1px solid #dfe5d5;border-radius:8px;background:#f4f3ed;color:#65725c;font-size:11px;line-height:1.8">免安装示例预览 · 可换色和导出虚构示例；真实网址读取与文件识别请启动网站服务。</div>'
+    banner = '<div style="margin-top:18px;padding:10px 14px;border:1px solid #d6ddcf;border-radius:8px;background:#f4f3ed;color:#56664e;font-size:12px;line-height:1.8">这是离线示例，可试配色和保存长图。翻译自己的菜单，请打开部署后的网站。</div>'
     html = re.sub(r"(<main\b[^>]*>)", lambda match: match.group(1) + banner, html, count=1)
     target = ROOT / "MenuFold_Preview.html"
     target.write_text(html, encoding="utf-8")

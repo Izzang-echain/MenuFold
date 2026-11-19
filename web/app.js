@@ -26,12 +26,17 @@
   }
   function applyTheme(){
     const t=D.themes[state.theme];
-    for(const [key,value] of Object.entries({heading:t.primary,accent:t.accent,rule:D.mix(t.primary,D.backgrounds.paper,.28)}))$('#menu').style.setProperty('--'+key,value);
+    for(const [key,value] of Object.entries({heading:t.primary,secondary:t.secondary,accent:t.accent,ink:t.ink,muted:t.muted,rule:D.mix(t.primary,D.backgrounds.paper,.28)}))$('#menu').style.setProperty('--'+key,value);
     $('#frame').style.borderColor=D.mix(t.primary,D.backgrounds.frame,.22);
     $$('[data-category]').forEach(e=>e.style.setProperty('--cat',Number(e.dataset.category)%2?t.secondary:t.primary));
     $('#themeName').textContent=t.name;
-    $('#swatches').innerHTML=[t.primary,t.secondary,t.accent].map(c=>'<i style="background:'+c+'"></i>').join('');
+    $('#swatches').innerHTML=D.themes.map((theme,index)=>'<button type="button" data-theme="'+index+'" aria-label="'+escape(theme.name)+'配色" aria-pressed="'+(index===state.theme)+'" title="'+escape(theme.name)+'">'+[theme.primary,theme.secondary,theme.accent].map(color=>'<i style="background:'+color+'"></i>').join('')+'</button>').join('');
+    $$('[data-theme]').forEach(button=>button.addEventListener('click',()=>selectTheme(Number(button.dataset.theme))));
     $('#shuffleTheme').setAttribute('aria-label','随机切换文字与边框配色，当前'+t.name);
+  }
+  function selectTheme(index){
+    if(!Number.isInteger(index)||!D.themes[index])return;
+    state.theme=index;state.bag=[];applyTheme();
   }
   function randomTheme(){
     if(!state.bag.length){state.bag=D.themes.map((_,i)=>i);for(let i=state.bag.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[state.bag[i],state.bag[j]]=[state.bag[j],state.bag[i]];}if(state.bag.at(-1)===state.theme)[state.bag[0],state.bag[state.bag.length-1]]=[state.bag.at(-1),state.bag[0]];}
@@ -60,8 +65,9 @@
   }
   function setMenu(menu){state.menu=menu;clearError();renderMenu();}
   function updateService(){
-    $('#serviceStatus').textContent=window.MENU_LENS_OFFLINE_PREVIEW?'免安装示例预览':!state.online?'整理服务未连接':state.configured?'可以开始整理':'识别服务尚未配置';
-    $('#serviceHint').textContent=window.MENU_LENS_OFFLINE_PREVIEW?'这是离线排版预览，可换色与导出示例；真实识别请启动完整版服务。':!state.online?'请通过完整版服务打开网页；当前可以先体验示例。':!state.configured?'识别服务尚未配置密钥，可先体验示例。':`提交后菜单将发送至 ${providerName()} 识别，请勿上传无关个人资料。`;
+    $('#serviceStatus').textContent=window.MENU_LENS_OFFLINE_PREVIEW?'示例预览':!state.online?'暂时无法连接':state.configured?'':'暂时无法生成';
+    $('#serviceStatus').hidden=state.online&&state.configured;
+    $('#serviceHint').textContent=window.MENU_LENS_OFFLINE_PREVIEW?'当前为示例，可换色并保存图片。':!state.online?'暂时无法生成，仍可查看示例。':!state.configured?'网站尚未配置完成，暂时可查看示例。':'生成后可切换配色，再保存长图。';
   }
   async function readDemo(){if(window.MENU_LENS_DEMO_DATA)return JSON.parse(JSON.stringify(window.MENU_LENS_DEMO_DATA));const r=await fetch('/demo.json');if(!r.ok)throw Error('示例加载失败。');return r.json();}
   async function init(){
@@ -99,7 +105,7 @@
   function setBusy(value){
     state.busy=value;$('#jobStatus').hidden=!value;$('#staleNotice').hidden=!value||!state.menu;
     ['#analyzeButton','#urlTab','#fileTab','#urlInput','#fileInput','#demoButton'].forEach(s=>$(s).disabled=value);
-    $('#downloadButton').disabled=value||!state.menu;$('#analyzeButton span:first-child').textContent=value?'正在整理…':'整理成中文菜单';renderFiles();
+    $('#downloadButton').disabled=value||!state.menu;$('#analyzeButton span:first-child').textContent=value?'正在整理…':'生成中文菜单';renderFiles();
     if(!value)clearInterval(jobTimer);
   }
   async function analyze(){
@@ -111,15 +117,15 @@
     if(!state.online){showError(window.MENU_LENS_OFFLINE_PREVIEW?'这是离线示例预览。请启动完整版服务后使用真实菜单识别。':'未连接整理服务，请检查网站服务是否已启动。');return;}
     if(!state.configured){showError(`识别服务尚未配置 ${providerName()} API 密钥。网站管理员配置后即可使用，当前可先体验示例。`);return;}
     state.controller=new AbortController();setBusy(true);const started=Date.now();
-    $('#jobDetail').textContent='长菜单按批次处理，可能需要几分钟。';
-    jobTimer=setInterval(()=>$('#jobDetail').textContent=`已等待 ${Math.floor((Date.now()-started)/1000)} 秒 · 正在处理菜单，请保留页面。`,1000);
+    $('#jobDetail').textContent='正在读取菜单，页数较多时会慢一些。';
+    jobTimer=setInterval(()=>$('#jobDetail').textContent=`已等待 ${Math.floor((Date.now()-started)/1000)} 秒 · 正在翻译，请保留页面。`,1000);
     const timeout=setTimeout(()=>state.controller?.abort('timeout'),15*60*1000);
     try{
       const response=await fetch('/api/analyze',{method:'POST',body:form,signal:state.controller.signal});
       let data;try{data=await response.json();}catch{throw Error('服务未返回有效结果，请检查服务状态后重试。');}
       if(!response.ok)throw Error(typeof data.detail==='string'?data.detail:Array.isArray(data.detail)?data.detail.map(x=>x.msg).join('；'):'菜单整理失败，请稍后重试。');
       const menu=validateMenu(data);if(menu.is_demo)throw Error('识别接口返回了示例内容，已停止替换真实结果。');
-      setMenu(menu);toast(`已整理 ${items(menu).length} 道菜，请先核对价格与规则。`);
+      setMenu(menu);toast(`已生成 ${items(menu).length} 道菜的中文菜单。`);
       if(innerWidth<721)$('#result').scrollIntoView({behavior:'smooth',block:'start'});
     }catch(e){
       if(state.controller?.signal.aborted)showError(state.controller.signal.reason==='timeout'?'等待超时，当前预览未更新。已经发出的 AI 请求可能仍占用额度。':'已停止等待，当前预览未更新。已经发出的 AI 请求可能仍占用额度。');
@@ -128,7 +134,7 @@
   }
   async function download(){
     if(!state.menu||state.busy)return;const b=$('#downloadButton');b.disabled=true;const original=b.textContent;b.textContent='排版中…';
-    try{const canvases=await window.MenuExport.render(state.menu,{theme:D.themes[state.theme]});const name=(state.menu.restaurant||'中文菜单').replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').slice(0,70);await window.MenuExport.download(canvases,'MenuFold_'+name+(state.menu.is_demo?'_虚构示例':''));toast(canvases.length>1?`已生成 ${canvases.length} 张菜单图，打包下载。`:'已生成菜单图片，请查看下载列表。');}
+    try{const canvases=await window.MenuExport.render(state.menu,{theme:D.themes[state.theme]});const name=(state.menu.restaurant||'中文菜单').replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').slice(0,70);await window.MenuExport.download(canvases,'MenuFold_'+name+(state.menu.is_demo?'_虚构示例':''));toast('长图已保存，请查看下载列表。');}
     catch(e){toast(e.message||'图片生成失败，请重试。');}finally{b.disabled=state.busy;b.textContent=original;}
   }
   $('#urlTab').addEventListener('click',()=>setSource('url'));$('#fileTab').addEventListener('click',()=>setSource('files'));
@@ -137,6 +143,6 @@
   const zone=$('#dropZone');['dragenter','dragover'].forEach(type=>zone.addEventListener(type,e=>{e.preventDefault();if(!state.busy)zone.classList.add('over');}));['dragleave','drop'].forEach(type=>zone.addEventListener(type,e=>{e.preventDefault();zone.classList.remove('over');}));zone.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
   $('#analyzeButton').addEventListener('click',analyze);$('#cancelButton').addEventListener('click',()=>state.controller?.abort('user'));
   $('#shuffleTheme').addEventListener('click',randomTheme);$('#downloadButton').addEventListener('click',download);
-  $('#demoButton').addEventListener('click',async()=>{try{setMenu(validateMenu(await readDemo()));toast('已加载虚构示例，可换色和导出。');}catch(e){showError(e.message);}});
+  $('#demoButton').addEventListener('click',async()=>{try{setMenu(validateMenu(await readDemo()));toast('已打开示例。');}catch(e){showError(e.message);}});
   init();
 })();

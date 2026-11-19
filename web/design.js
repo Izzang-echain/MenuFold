@@ -66,6 +66,44 @@
     }
     return result.join('；');
   }
+  function priceLabel(value){
+    const label=cleanNote(value);
+    if(/^adult\s*[（(]\s*成人\s*[）)]$/i.test(label))return '成人';
+    const age=label.match(/^(child|kid)\s*[（(]\s*(\d{1,3})\s*[-–—～~至]\s*(\d{1,3})\s*[）)]\s*[（(]\s*(儿童|幼儿)\s*(\d{1,3})\s*[-–—～~至]\s*(\d{1,3})\s*岁?\s*[）)]$/i);
+    if(age&&Number(age[2])===Number(age[5])&&Number(age[3])===Number(age[6])
+      &&((age[1].toLowerCase()==='child'&&age[4]==='儿童')||(age[1].toLowerCase()==='kid'&&age[4]==='幼儿')))
+      return `${age[4]}${age[5]}–${age[6]}岁`;
+    return label;
+  }
+  function chargeText(value,names=[]){
+    // Typed charges must keep their explicit amounts even when an older model
+    // response mixed in audit wording. Never derive currency or invent a rate.
+    const raw=text(value);
+    const amounts=value=>(String(value).match(/[+＋−-]?(?:\b(?:CAD|USD|EUR|GBP|CNY|RMB|AUD|HKD|JPY|SGD|CHF)\s*[$€£¥￥]?\s*\d[\d,]*(?:\.\d+)?|(?:CA?|US|AU|HK)?[$€£¥￥]\s*\d[\d,]*(?:\.\d+)?|\d[\d,]*(?:\.\d+)?\s*(?:\b(?:CAD|USD|EUR|GBP|CNY|RMB|AUD|HKD|JPY|SGD|CHF)\b|人民币|加元|美元|欧元|英镑|日元|港元|澳元|新元|元))/gi)||[]).map(text);
+    const containsTokens=(value,expected)=>{
+      const remaining=new Map();for(const amount of amounts(value))remaining.set(amount,(remaining.get(amount)||0)+1);
+      return expected.every(amount=>{const count=remaining.get(amount)||0;if(!count)return false;remaining.set(amount,count-1);return true;});
+    };
+    const expected=amounts(raw),hasAll=value=>containsTokens(value,expected);
+    const removeAudit=value=>value
+      .replace(/^(?:识别(?:说明|结果)|翻译说明|OCR(?:说明)?|来源|source|needs[_ ]verification)\s*[:：]\s*/i,'')
+      .replace(/(?:识别存疑|识别不确定|请核对|待核对|待核实|待确认|需确认|needs[_ ]verification)/gi,'')
+      .replace(/(?:价格|售价)(?:尚|暂)?(?:未注明|未标注)币种\s*[:：]?\s*/g,'')
+      .replace(/^(?:价格|售价)\s*[:：]?\s*/,'').replace(/^[\s：:；;，,]+|[\s：:；;，,]+$/g,'');
+    const cleaned=cleanNote(removeAudit(raw),names);
+    if(!expected.length||hasAll(cleaned))return cleaned;
+    // Recover independently, so an unsupported audit clause cannot erase a
+    // valid size/age/time label from the other charge clauses. When its scope
+    // cannot be separated safely, print only the literal monetary tokens.
+    const parts=[];
+    for(const clause of noteClauses(raw)){
+      const tokens=amounts(clause),candidate=cleanNote(removeAudit(clause),names);
+      if(!tokens.length){if(candidate)parts.push(candidate);continue;}
+      parts.push(containsTokens(candidate,tokens)?candidate:tokens.join(' / '));
+    }
+    const result=parts.join('；');
+    return hasAll(result)?result:expected.join(' / ');
+  }
   function servingLabelsCovered(availability,prices){
     const labels=noteClauses(availability).flatMap(value=>value.split(/\s*\/\s*/)).map(noteKey).filter(Boolean);
     const servingPatterns={glass:/\bglass\b|单杯/i,单杯:/\bglass\b|单杯/i,pitcher:/\bpitcher\b|整壶/i,整壶:/\bpitcher\b|整壶/i,bottle:/\bbottle\b|瓶装/i,瓶装:/\bbottle\b|瓶装/i};
@@ -75,8 +113,8 @@
     const names=[item.original_name,item.translated_name,item.order_code];
     const projected={...item,
       description:cleanNote(item.description,names),
-      price:cleanNote(item.price,names).replace(/^(?:价格|售价)\s*[:：]?\s*/,''),
-      surcharge:cleanNote(item.surcharge,names).replace(/^加价\s*[:：]\s*/,''),
+      price:chargeText(item.price,names).replace(/^(?:价格|售价)\s*[:：]?\s*/,''),
+      surcharge:chargeText(item.surcharge,names).replace(/^加价\s*[:：]\s*/,''),
       availability:cleanNote(item.availability,names),
       tags:[...new Map((Array.isArray(item.tags)?item.tags:[]).map(value=>cleanNote(value,names)).filter(Boolean).map(value=>[noteKey(value),value])).values()],
       source:'',needs_verification:false
@@ -104,12 +142,23 @@
     if(/^(?:菜单|原菜单|该页|本页)(?:中|上)?(?:未|没有)(?:标注|注明|说明|提供)/.test(result))return '';
     return result;
   }
+  function presentRules(rules){
+    const seen=new Set(),result=[];
+    for(const rule of Array.isArray(rules)?rules:[]){
+      const label=ruleText(rule.label),detail=ruleText(rule.detail);
+      if(!detail)continue;
+      const key=noteKey(label)+'|'+noteKey(detail);
+      if(seen.has(key))continue;
+      seen.add(key);result.push({...rule,label,detail,source:''});
+    }
+    return result;
+  }
   function presentMenu(menu={}){
     // This is the common screen/export view. The original response remains
     // available separately for source review; no input object is changed.
     return {...menu,
-      pricing:(Array.isArray(menu.pricing)?menu.pricing:[]).map(price=>({...price,label:cleanNote(price.label),value:cleanNote(price.value).replace(/^(?:价格|售价)\s*[:：]?\s*/,''),note:cleanNote(price.note),source:''})).filter(price=>price.value),
-      rules:(Array.isArray(menu.rules)?menu.rules:[]).map(rule=>({...rule,label:ruleText(rule.label),detail:ruleText(rule.detail),source:''})).filter(rule=>rule.detail),
+      pricing:(Array.isArray(menu.pricing)?menu.pricing:[]).map(price=>({...price,label:priceLabel(price.label),value:chargeText(price.value).replace(/^(?:价格|售价)\s*[:：]?\s*/,''),note:cleanNote(price.note),source:''})).filter(price=>price.value),
+      rules:presentRules(menu.rules),
       categories:(Array.isArray(menu.categories)?menu.categories:[]).map(presentCategory),
       warnings:[],coverage:{...menu.coverage,notes:[]},source_label:''
     };

@@ -29,6 +29,34 @@ _BEVERAGE = re.compile(r"\b(?:drink|beverage|cocktail|mocktail|beer|wine|sake|so
 _GROUP_LABEL = re.compile(r"^(?:drinks?|beverages?|cocktails?|mocktails?|beer|wine|sake|soft drinks?|饮品|饮料|鸡尾酒|雞尾酒|调酒|啤酒|清酒|葡萄酒|软饮|汽水)$", re.IGNORECASE)
 _PROMO = re.compile(r"\b(?:new|promotions?|featured|recommendations?|seasonal|limited\s+time)\b|新品|新菜|推荐|推薦|推广|推廣|促销|促銷|限时|限時|季节|季節", re.IGNORECASE)
 _EXCEPTIONS = re.compile(r"\b(?:except|excluding|excludes|selected|only)\b|除外|不含|仅限|只限|指定", re.IGNORECASE)
+_MONEY = re.compile(
+    r"(?:(?:US|CA|AU|NZ|HK|SG)\$|[$€£¥￥₩]|\b(?:USD|CAD|AUD|NZD|HKD|SGD|EUR|GBP|CNY|RMB|JPY|KRW)\b)\s*\d[\d,]*(?:\.\d+)?"
+    r"|\d[\d,]*(?:\.\d+)?\s*(?:美元|加元|澳元|欧元|英镑|人民币|日元|韩元|元)",
+    re.IGNORECASE,
+)
+
+
+def money_values(text: str) -> set[str]:
+    """Comparable literal money tokens; preserve currency and decimal marks."""
+    return {re.sub(r"\s+", "", match.group()).casefold()
+            for match in _MONEY.finditer(unicodedata.normalize("NFKC", text))}
+
+
+def menu_money_values(menu: dict, *, charges_only: bool = False) -> set[str]:
+    """Read printable facts only, never audit warnings, source URLs or usage."""
+    fields = []
+    for price in menu.get("pricing", []):
+        fields.extend(price.get(key, "") for key in ("label", "value", "note"))
+    for rule in menu.get("rules", []):
+        fields.extend(rule.get(key, "") for key in ("label", "detail"))
+    for category in menu.get("categories", []):
+        for item in category.get("items", []):
+            keys = ("price", "surcharge") if charges_only else (
+                "original_name", "translated_name", "description", "price", "surcharge", "availability")
+            fields.extend(item.get(key, "") for key in keys)
+            if not charges_only:
+                fields.extend(item.get("tags", []))
+    return set().union(*(money_values(value) for value in fields)) if fields else set()
 
 
 def _key(value: str) -> str:
@@ -122,7 +150,7 @@ def _generic_drinks(category: dict) -> bool:
 
 
 def _amounts(price: str) -> set[str]:
-    return set(re.findall(r"(?:\$|€|£|¥|￥)\s*\d+(?:\.\d+)?", price))
+    return money_values(price)
 
 
 def _same_dish(first: dict, second: dict, drink_alias: bool = False) -> bool:
@@ -131,13 +159,18 @@ def _same_dish(first: dict, second: dict, drink_alias: bool = False) -> bool:
             return False
     elif not first["translated_name"] or _key(first["translated_name"]) != _key(second["translated_name"]):
         return False
+    if any(_amounts(first[field]) != _amounts(second[field])
+           for field in ("original_name", "translated_name")):
+        return False
     if first["order_code"] and second["order_code"] and _key(first["order_code"]) != _key(second["order_code"]):
         return False
     # Empty monetary/availability fields are not evidence that a charged or
     # limited variant is identical to its unrestricted counterpart.
-    if any(_key(first[field]) != _key(second[field]) for field in ("surcharge", "availability")):
+    if any(_text_key(first[field]) != _text_key(second[field]) for field in ("surcharge", "availability")):
         return False
-    if _key(first["price"]) != _key(second["price"]):
+    # Currency symbols, decimal points, signs and range separators carry facts.
+    # Name matching may ignore punctuation; monetary/condition matching cannot.
+    if _text_key(first["price"]) != _text_key(second["price"]):
         first_amounts, second_amounts = _amounts(first["price"]), _amounts(second["price"])
         if not (drink_alias and first_amounts and second_amounts
                 and (first_amounts <= second_amounts or second_amounts <= first_amounts)
@@ -146,7 +179,8 @@ def _same_dish(first: dict, second: dict, drink_alias: bool = False) -> bool:
             return False
     if drink_alias:
         return True
-    return not (first["description"] and second["description"] and _key(first["description"]) != _key(second["description"]))
+    return not (first["description"] and second["description"]
+                and _text_key(first["description"]) != _text_key(second["description"]))
 
 
 def _merge_repeated_dishes(menu: dict) -> None:
@@ -242,13 +276,15 @@ def _relocate_item_prices(menu: dict) -> None:
         matches = exact or [item for item in items if label_key and label_key in {_key(item["original_name"]), _key(item["translated_name"])}]
         if matches:
             # Distinct paid or availability variants cannot be assigned a
-            # generic price reliably. Preserve the row in audit metadata.
-            conditions = {(_key(item["surcharge"]), _key(item["availability"])) for item in matches}
+            # generic price reliably. Keep the charge visible as a menu rule.
+            conditions = {(_text_key(item["surcharge"]), _text_key(item["availability"])) for item in matches}
             if len(conditions) == 1:
                 assigned = False
                 for item in matches:
-                    if (item["price"] and not _SERVING.search(label)
-                            and _key(entry["value"]) not in _key(item["price"])):
+                    amounts = _amounts(entry["value"])
+                    compatible = (amounts <= _amounts(item["price"]) if amounts
+                                  else _text_key(entry["value"]) in _text_key(item["price"]))
+                    if item["price"] and not _SERVING.search(label) and not compatible:
                         menu["warnings"].append("单品价格与已有收费不同，未自动合并：" + json.dumps(entry, ensure_ascii=False))
                         continue
                     _attach_price(item, entry, [item["original_name"], item["translated_name"]])

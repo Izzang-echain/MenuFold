@@ -2,29 +2,30 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#f7f6f2"><title>MenuFold · 中文菜单总览</title>
-  <link rel="stylesheet" href="/styles.css">
+  <meta name="theme-color" content="#f7f6f2"><title>MenuFold · 菜单翻译</title>
+  <meta name="description" content="粘贴菜单链接或上传菜单，翻成中文，整理成一张长图。">
+  <link rel="stylesheet" href="/styles.css?v=0.2.3">
 </head>
 <body>
 <svg class="svg-defs" aria-hidden="true"><defs><symbol id="bowl" viewBox="0 0 36 36"><path d="M7 20h22c-1 8-6 12-11 12S8 28 7 20Z" fill="currentColor"/><path d="m12 12 14-7M14 16l15-7M6 20h24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol></defs></svg>
 <header>
-  <div class="brand"><span class="brand-icon"><svg width="28" height="28" aria-hidden="true"><use href="#bowl"/></svg></span><span>MenuFold<small>MENU, SIMPLIFIED.</small></span></div>
-  <span class="header-note" id="serviceStatus" role="status">正在连接整理服务…</span>
+  <a class="brand" href="/" aria-label="MenuFold 首页"><span class="brand-icon"><svg width="28" height="28" aria-hidden="true"><use href="#bowl"/></svg></span><span>MenuFold</span></a>
+  <span class="header-note" id="serviceStatus" role="status">连接中…</span>
 </header>
 <main>
-  <section class="hero"><div class="eyebrow">LESS SCROLLING. MORE CLARITY.</div><h1>长菜单，<span>清楚一点。</span></h1><p>粘贴菜单网址，或上传文件，把价格、规则和菜品集中看。</p></section>
+  <section class="hero"><h1>翻译菜单，<span>存成一张图。</span></h1><p>粘贴餐厅菜单链接，或上传 PDF、照片。<br class="mobile-break">菜名、价格和用餐规则，整理好一起看。</p></section>
   <div class="workspace">
     <aside class="input-column">
       <section class="input-card">
-        <div class="kicker">START WITH YOUR MENU</div><h2>放入你的菜单</h2><p>有菜单链接，直接粘贴就好。</p>
+        <h2>上传菜单</h2>
         <div class="source-tabs" role="tablist" aria-label="菜单来源">
-          <button type="button" class="active" id="urlTab" role="tab" aria-selected="true" aria-controls="urlPane">↗ 菜单网址</button>
-          <button type="button" id="fileTab" role="tab" aria-selected="false" aria-controls="filePane">↑ 上传文件</button>
+          <button type="button" class="active" id="urlTab" role="tab" aria-selected="true" aria-controls="urlPane">菜单链接</button>
+          <button type="button" id="fileTab" role="tab" aria-selected="false" aria-controls="filePane">PDF / 照片</button>
         </div>
         <div class="source-pane" id="urlPane" role="tabpanel" aria-labelledby="urlTab">
-          <label class="url-label" for="urlInput">菜单链接<span class="recommended">推荐</span></label>
+          <label class="url-label" for="urlInput">粘贴链接</label>
           <input class="url-input" id="urlInput" type="url" inputmode="url" autocomplete="url" maxlength="4096" placeholder="https://restaurant.com/menu">
-          <p class="url-hint">支持公开菜单网页、PDF 和图片直链。<br>扫码或动态菜单可以截图后上传。</p>
+          <p class="url-hint">餐厅菜单网页、PDF 或图片链接都可以。<br>链接打不开时，试试上传截图。</p>
         </div>
         <div class="source-pane" id="filePane" role="tabpanel" aria-labelledby="fileTab" hidden>
           <label class="drop-zone" id="dropZone"><input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple>
@@ -33,28 +34,27 @@
           </label><div class="file-list" id="fileList" aria-live="polite"></div>
         </div>
         <div class="error" id="error" hidden role="alert"></div>
-        <button type="button" class="primary-button" id="analyzeButton"><span>整理成中文菜单</span><span aria-hidden="true">↗</span></button>
-        <div class="job-status" id="jobStatus" hidden aria-live="polite"><div><span class="spinner"></span><strong>正在识别、翻译和分类</strong><button type="button" id="cancelButton">停止等待</button></div><p id="jobDetail">长菜单可能需要几分钟，请保留页面。</p></div>
-        <p class="service-hint" id="serviceHint">菜单将发送至 AI 服务识别，请勿上传无关个人资料。</p>
-        <div class="sample-row"><span>先看看成品</span><button type="button" id="demoButton">体验示例 →</button></div>
+        <button type="button" class="primary-button" id="analyzeButton"><span>生成中文菜单</span><span aria-hidden="true">→</span></button>
+        <div class="job-status" id="jobStatus" hidden aria-live="polite"><div><span class="spinner"></span><strong>正在翻译菜单…</strong><button type="button" id="cancelButton">取消</button></div><p id="jobDetail">页数较多时需要几分钟，请保留页面。</p></div>
+        <p class="service-hint" id="serviceHint">生成后可以切换配色，再保存图片。</p>
+        <div class="sample-row"><span>先看看效果</span><button type="button" id="demoButton">打开示例 →</button></div>
       </section>
-      <div class="side-note"><strong>菜品集中看，重点一眼找到。</strong><p>醒目的编号与中文名，英文原名随行。<br>关键价格、限时和加价统一强调。</p></div>
     </aside>
     <section class="result" id="result" aria-label="菜单整理结果">
       <div class="toolbar">
         <div class="toolbar-title"><h2>菜单预览</h2><span class="badge" id="resultBadge">虚构示例</span></div>
-        <div class="toolbar-actions"><span class="theme-label"><span class="swatches" id="swatches"></span><span id="themeName"></span></span><button type="button" class="small-button" id="shuffleTheme">↻ 随机配色</button><button type="button" class="small-button download-button" id="downloadButton">↓ 下载图片</button></div>
+        <div class="toolbar-actions"><span class="theme-label"><span class="swatches" id="swatches" role="group" aria-label="菜单配色"></span><span id="themeName"></span></span><button type="button" class="small-button" id="shuffleTheme">↻ 随机配色</button><button type="button" class="small-button download-button" id="downloadButton">↓ 保存长图</button></div>
       </div>
       <p class="stale-notice" id="staleNotice" hidden>正在整理新菜单，下方暂时显示上一份内容。</p>
       <div class="notices" id="notices" hidden role="status"></div>
       <div class="frame" id="frame"><article class="menu" id="menu"><div class="empty-state">正在准备示例菜单…</div></article></div>
-      <div class="result-note"><span id="resultMeta">浅色背景固定 · 文字与边框配色</span><span>5 套配色</span></div>
-      <details class="source-details" id="sourceDetails"><summary>来源与核对信息</summary><div id="sourceInfo"></div></details>
+      <div class="result-note"><span id="resultMeta">中文菜名 · 英文对照</span><span>一张 PNG 长图</span></div>
+      <details class="source-details" id="sourceDetails"><summary>来源与识别详情</summary><div id="sourceInfo"></div></details>
     </section>
   </div>
-  <footer class="page-footer"><span>少翻几页，多看明白一点。</span><span>MENU MADE SIMPLE.</span></footer>
+  <footer class="page-footer"><span>MenuFold</span><span>菜单翻译 · 一图保存</span></footer>
 </main>
 <div class="toast" id="toast" hidden role="status"></div>
-<script src="/design.js"></script><script src="/export.js"></script><script src="/app.js"></script>
+<script src="/design.js?v=0.2.3"></script><script src="/export.js?v=0.2.3"></script><script src="/app.js?v=0.2.3"></script>
 </body>
 </html>

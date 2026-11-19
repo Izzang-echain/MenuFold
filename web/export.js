@@ -1,7 +1,7 @@
-/* MenuFold — compact complete-menu PNG/ZIP export, no external dependencies. */
+/* MenuFold — balanced single-image menu export, no external dependencies. */
 (() => {
   'use strict';
-  const W=1440, M=52, GAP=30, INNER=W-M*2, COL=(INNER-GAP*2)/3, MAX_H=3200, FOOTER=82;
+  const W=1440, M=48, GAP=28, INNER=W-M*2, COL=(INNER-GAP*2)/3, MAX_H=16384, FOOTER=64;
   const BRAND='#e66e49', BRAND_NAME='MenuFold';
   const BG=Object.freeze({paper:'#fffdf7',rules:'#f4f3ed',category:'#faf9f4'});
   const FONT_SANS='"MenuFold Sans", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", system-ui, sans-serif';
@@ -82,170 +82,171 @@
   const height=lines=>lines.reduce((n,line)=>n+line.height,0);
 
   class Layout{
-    constructor(menu,theme,ctx){this.menu=menu;this.t=theme;this.measure=ctx;this.pages=[];this.newPage();}
-    rich(parts,width=INNER,options={}){return measureRich(this.measure,parts,width,{color:this.t.ink,accent:this.t.accent,...options});}
-    plain(text,width=INNER,options={}){return this.rich([{text}],width,options);}
-    newPage(){
+    constructor(menu,theme,ctx){
+      this.menu=menu;this.t=theme;this.measure=ctx;this.commands=[];this.bottom=0;
       font(this.measure,31,700,FONT_SANS);
       const logoWidth=54+Math.ceil(this.measure.measureText(BRAND_NAME).width);
-      const title=this.plain(cleanText(this.menu.restaurant)||'未命名餐厅',INNER-logoWidth-44,{size:52,weight:700,color:this.t.primary,lineHeight:70,family:FONT_SERIF});
-      const titleHeight=Math.max(48,height(title));
-      if(titleHeight>MAX_H-FOOTER-220)throw Error('餐厅名称过长，无法安全排版，请缩短名称后重试。');
-      this.current={commands:[],top:40+titleHeight+42,bottom:0};this.pages.push(this.current);this.y=this.current.top;
-      this.draw(title,M,40);
-      this.current.commands.push({type:'logo',x:W-M-logoWidth,y:43});
-      this.current.commands.push({type:'line',x:M,y:this.current.top-21,width:INNER,color:mix(this.t.primary,BG.paper,.28)});
-      this.top=this.current.top;this.bottom=MAX_H-FOOTER;
+      const title=this.plain(cleanText(menu.restaurant)||'未命名餐厅',INNER-logoWidth-36,{size:46,weight:700,color:theme.primary,lineHeight:61,family:FONT_SERIF});
+      this.y=34+Math.max(48,height(title))+30;
+      this.draw(title,M,34);this.commands.push({type:'logo',x:W-M-logoWidth,y:36});
+      this.commands.push({type:'line',x:M,y:this.y-15,width:INNER,color:mix(theme.primary,BG.paper,.28)});
     }
-    draw(lines,x,y){let yy=y;for(const line of lines){let xx=x;for(const run of line.runs){this.current.commands.push({type:'text',...run,x:xx,y:yy+run.size});font(this.measure,run.size,run.weight,run.family);xx+=this.measure.measureText(run.text).width;}yy+=line.height;}this.current.bottom=Math.max(this.current.bottom,yy);return yy;}
-    available(){return this.bottom-this.y;}
-    flow(lines,options={}){
-      const padding=options.fill?16:0;
-      const pending=lines.slice();
-      if(height(pending)+padding*2<=this.bottom-this.top&&height(pending)+padding*2>this.available())this.newPage();
-      while(pending.length){
-        if(this.available()<padding*2+Math.max(36,pending[0].height))this.newPage();
-        let used=padding*2,n=0;
-        while(n<pending.length&&used+pending[n].height<=this.available()){used+=pending[n].height;n++;}
-        if(!n){this.newPage();continue;}
-        if(options.fill)this.current.commands.push({type:'rect',x:M,y:this.y,width:INNER,height:used,fill:options.fill,stroke:options.stroke});
-        this.draw(pending.splice(0,n),M+padding,this.y+padding);this.y+=used+(options.after??10);
-        if(pending.length)this.newPage();
-      }
+    rich(parts,width=INNER,options={}){return measureRich(this.measure,parts,width,{color:this.t.ink,accent:this.t.accent,...options});}
+    plain(text,width=INNER,options={}){return this.rich([{text}],width,options);}
+    draw(lines,x,y){
+      let yy=y;for(const line of lines){let xx=x;for(const run of line.runs){
+        this.commands.push({type:'text',...run,x:xx,y:yy+run.size});
+        font(this.measure,run.size,run.weight,run.family);xx+=this.measure.measureText(run.text).width;
+      }yy+=line.height;}this.bottom=Math.max(this.bottom,yy);return yy;
     }
     prices(prices){
-      const blocks=prices.map(price=>[
-        ...this.plain(cleanText(price.label),COL,{size:23,color:this.t.muted,lineHeight:31}),
-        ...this.plain(cleanText(price.value),COL,{size:31,weight:700,color:this.t.accent,lineHeight:41}),
-        ...this.plain(menuNote(price.note),COL,{size:21,color:this.t.muted,lineHeight:29}),gap(10)
-      ]);
-      this.grid(blocks,3);this.y+=6;
-    }
-    // Pricing rows stay compact; exceptionally long fields still flow safely.
-    grid(blocks,cols=3){
-      const width=(INNER-GAP*(cols-1))/cols;
-      for(let row=0;row<blocks.length;row+=cols){
-        const lists=blocks.slice(row,row+cols).map(block=>block.slice());
-        const natural=Math.max(...lists.map(height),0);
-        if(natural<=this.bottom-this.top&&natural>this.available())this.newPage();
-        while(lists.some(list=>list.length)){
-          if(this.available()<60)this.newPage();
-          const tops=this.y,ends=[];
-          for(let col=0;col<lists.length;col++){
-            const lines=lists[col];let used=0,n=0;
-            while(n<lines.length&&used+lines[n].height<=this.available()){used+=lines[n].height;n++;}
-            if(n)this.draw(lines.splice(0,n),M+col*(width+GAP),tops);
-            ends.push(tops+used);
+      // A weekday/time condition is stated once over its matching tariffs.
+      // Separate conditions and one-off prices retain their own labels/notes.
+      const groups=[],byNote=new Map();
+      for(const price of prices){
+        const note=menuNote(price.note),key=note||Symbol();
+        let group=byNote.get(key);if(!group){group={note,prices:[]};groups.push(group);byNote.set(key,group);}
+        group.prices.push(price);
+      }
+      const compactGroups=[];let loose=[];
+      const flushLoose=()=>{if(loose.length){compactGroups.push({note:'',prices:loose});loose=[];}};
+      for(const group of groups){if(group.note&&group.prices.length>1){flushLoose();compactGroups.push(group);}else loose.push(...group.prices);}
+      flushLoose();
+      const width=(INNER-GAP*2)/3;
+      for(const group of compactGroups){
+        const common=!!group.note;
+        if(common)this.y=this.draw(this.plain(group.note,INNER,{size:20,lineHeight:27,color:this.t.muted}),M,this.y)+5;
+        for(let start=0;start<group.prices.length;start+=3){
+          const row=group.prices.slice(start,start+3),ends=[];
+          for(let col=0;col<row.length;col++){
+            const price=row[col],parts=[];
+            if(cleanText(price.label))parts.push({text:cleanText(price.label)+'  ',color:this.t.primary});
+            parts.push({text:cleanText(price.value),bold:true,color:this.t.accent});
+            const lines=this.rich(parts,width,{size:27,lineHeight:37});
+            if(!common&&menuNote(price.note))lines.push(...this.plain(menuNote(price.note),width,{size:20,lineHeight:27,color:this.t.muted}));
+            ends.push(this.draw(lines,M+col*(width+GAP),this.y));
           }
-          this.y=Math.max(...ends,tops);
-          if(lists.some(list=>list.length))this.newPage();
+          this.y=Math.max(...ends,this.y)+9;
         }
       }
+      this.y+=9;
     }
-    categoryColumns(categories){
-      // Each column advances independently, so the next category fills the
-      // shortest column instead of waiting for the tallest category in a row.
-      let cursors=[this.y,this.y,this.y];
-      const freshPage=()=>{this.newPage();cursors=[this.y,this.y,this.y];};
-      const shortest=()=>cursors.indexOf(Math.min(...cursors));
-      const leadingHeight=lines=>{
-        let used=0;for(const line of lines){used+=line.height;if(line.runs.length&&!line.categoryLegend)return used;}return used;
-      };
-      for(let index=0;index<categories.length;index++){
-        const column=this.categoryBlocks(categories[index],index),blocks=column.blocks;
-        let col=shortest(),continued=false,needsHeader=false;
-        while(blocks.length){
-          const block=blocks[0],prefix=needsHeader?this.categoryHeader(column.category,index,true):[];
-          const lines=[...prefix,...block.lines],needed=height(lines),remaining=this.bottom-cursors[col];
-          if(needed<=remaining){
-            this.drawCategoryBlock({...block,lines,height:needed},M+col*(COL+GAP),cursors[col],column.color);
-            cursors[col]+=needed;blocks.shift();continued=true;needsHeader=false;
-            continue;
-          }
-          const fullHeight=this.bottom-this.top;
-          if(needed>fullHeight&&leadingHeight(lines)<=remaining){
-            // A single exceptional note can span columns, but a category label
-            // always stays with at least its first line of menu content.
-            let n=0,used=height(prefix);
-            while(n<block.lines.length&&used+block.lines[n].height<=remaining){used+=block.lines[n].height;n++;}
-            this.drawCategoryBlock({...block,lines:[...prefix,...block.lines.splice(0,n)],height:used},M+col*(COL+GAP),cursors[col],column.color);
-            cursors[col]+=used;
-            while(block.lines.length&&!block.lines[0].runs.length&&!block.lines[0].categoryHeading)block.lines.shift();
-            block.height=height(block.lines);block.header=false;
-            if(!block.lines.length)blocks.shift();
-            continued=true;
-          }
-          if(!blocks.length)break;
-          const next=blocks[0],head=continued?this.categoryHeader(column.category,index,true):[];
-          const candidate=[...head,...next.lines],candidateHeight=height(candidate);
-          const required=candidateHeight<=fullHeight?candidateHeight:leadingHeight(candidate);
-          const fit=cursors.map((y,i)=>({i,y})).filter(c=>this.bottom-c.y>=required).sort((a,b)=>a.y-b.y)[0];
-          if(fit)col=fit.i;
-          else{freshPage();col=0;}
-          needsHeader=continued&&!next.header;
-        }
-        this.y=Math.max(...cursors);
+    rules(rules){
+      const padding=15,columnGap=30,width=(INNER-padding*2-columnGap)/2;
+      const entries=[];
+      for(const rule of rules){
+        const detail=window.MenuDesign?.presentMenu?cleanText(rule.detail):menuNote(rule.detail);if(!detail)continue;
+        const parts=[];if(rule.label)parts.push({text:cleanText(rule.label)+'：',bold:true});parts.push(...emphasisParts(detail));
+        const lines=this.rich(parts,width,{size:20,lineHeight:28,color:this.t.muted});
+        entries.push({lines,height:height(lines)+6});
       }
-      this.y=Math.max(...cursors);
+      if(!entries.length)return;
+      // Keep the reading order: first half down the left, remainder on right.
+      // Choose a split from measured lines, so unequal rules stay balanced.
+      let split=entries.length,best=Infinity;
+      const total=entries.reduce((sum,entry)=>sum+entry.height,0);let before=0;
+      for(let i=1;i<=entries.length;i++){
+        before+=entries[i-1].height;const cost=Math.max(before,total-before);
+        if(cost<best){best=cost;split=i;}
+      }
+      const boxHeight=best+padding*2-6;
+      this.commands.push({type:'rect',x:M,y:this.y,width:INNER,height:boxHeight,fill:BG.rules,stroke:mix(this.t.primary,BG.paper,.28)});
+      let left=this.y+padding,right=left;
+      entries.forEach((entry,index)=>{if(index<split)left=this.draw(entry.lines,M+padding,left)+6;else right=this.draw(entry.lines,M+padding+width+columnGap,right)+6;});
+      this.y+=boxHeight+20;this.bottom=Math.max(this.bottom,this.y);
     }
     categoryHeader(category,index,continued=false){
       const color=index%2?this.t.secondary:this.t.primary;
-      const lines=this.plain(`${cleanText(category.title)||'其他菜品'}${continued?' · 续':''}`,COL-28,{size:29,weight:700,color,lineHeight:41,family:FONT_SERIF});
-      const header={runs:[],height:height(lines)+18,size:0,categoryHeading:lines};
+      const lines=this.plain(`${cleanText(category.title)||'其他菜品'}${continued?' · 续':''}`,COL-24,{size:27,weight:700,color,lineHeight:36,family:FONT_SERIF});
+      const result=[{runs:[],height:height(lines)+12,size:0,categoryHeading:lines},gap(10)];
       const shared=(category.shared_notes||[]).map(part=>({...part,text:menuNote(part.text)})).filter(part=>part.text);
-      if(!shared.length)return [header,gap(14)];
-      const legend=this.rich(shared,COL,{size:22,color:this.t.muted,lineHeight:31}).map(line=>({...line,categoryLegend:true}));
-      return [header,gap(8),...legend,gap(10)];
+      if(shared.length)result.push(...this.rich(shared,COL,{size:20,color:this.t.muted,lineHeight:27}),gap(8));
+      if(menuNote(category.subtitle))result.push(...this.plain(menuNote(category.subtitle),COL,{size:20,color:this.t.muted,lineHeight:27}),gap(6));
+      return result;
     }
     categoryBlocks(category,index){
-      const color=index%2?this.t.secondary:this.t.primary;
-      const head=this.categoryHeader(category,index),blocks=[];
-      if(menuNote(category.subtitle))head.push(...this.plain(menuNote(category.subtitle),COL,{size:21,color:this.t.muted,lineHeight:29}),gap(8));
+      const header=this.categoryHeader(category,index);
       const items=(category.items||[]).map(item=>{
-        const main=[{text:item.order_code?string(item.order_code)+' ':'',bold:true,color:this.t.accent,family:FONT_SANS},{text:cleanText(item.translated_name||item.original_name)||'未命名菜品',bold:true,color:this.t.ink,family:FONT_SERIF}];
+        const main=[{text:item.order_code?string(item.order_code)+' ':'',bold:true,color:this.t.accent,family:FONT_SANS},{text:cleanText(item.translated_name||item.original_name)||'未命名菜品',bold:true,color:this.t.primary,family:FONT_SERIF}];
         const notes=noteParts(item),english=[{text:cleanText(item.original_name)}];
-        if(notes.length)english.push({text:'（'},...notes,{text:'）'});
-        const lines=[...this.rich(main,COL,{size:35,weight:700,lineHeight:48}),gap(2),...this.rich(english,COL,{size:23,color:this.t.muted,lineHeight:33}),gap(17)];
+        if(notes.length){
+          english.push({text:'（'},...notes.map(part=>({...part})));
+          english.at(-1).text+='）';
+        }
+        const lines=[...this.rich(main,COL,{size:32,weight:700,lineHeight:42}),...this.rich(english,COL,{size:20,color:this.t.muted,lineHeight:27}),gap(12)];
         return{lines,height:height(lines)};
       });
-      if(items.length){const first=items.shift();const lines=[...head,...first.lines];blocks.push({lines,height:height(lines),header:true});blocks.push(...items);}
-      else blocks.push({lines:head,height:height(head),header:true});
-      return{category,index,color,blocks};
+      const blocks=[];
+      items.forEach((item,itemIndex)=>{
+        const lines=itemIndex===0?[...header,...item.lines]:item.lines;
+        blocks.push({lines,height:height(lines),category,index,first:itemIndex===0});
+      });
+      return blocks;
     }
-    drawCategoryBlock(block,x,y,color){
+    categoryColumns(categories){
+      const blocks=categories.flatMap((category,index)=>this.categoryBlocks(category,index));
+      if(!blocks.length)return;
+      const top=this.y;
+      // Binary-search the lowest common column height. Categories follow their
+      // source order, but a long category can continue in the next column.
+      const pack=limit=>{
+        const columns=[[]];let used=0,previous=null;
+        for(const block of blocks){
+          let prefix=[];
+          if(columns.at(-1).length&&used+block.height>limit){columns.push([]);used=0;}
+          if(!columns.at(-1).length&&!block.first&&previous===block.index)prefix=this.categoryHeader(block.category,block.index,true);
+          const addition=height(prefix)+block.height;
+          if(addition>limit)return null;
+          if(columns.length>3)return null;
+          columns.at(-1).push({block,prefix});used+=addition;previous=block.index;
+        }
+        return columns;
+      };
+      const continuation=Math.max(...categories.map((category,index)=>height(this.categoryHeader(category,index,true))),0);
+      let low=Math.max(...blocks.map(block=>block.height)),high=blocks.reduce((sum,block)=>sum+block.height,0)+continuation*2;
+      while(high-low>1){const mid=Math.floor((low+high)/2);if(pack(mid))high=mid;else low=mid;}
+      const columns=pack(high);if(!columns)throw Error('菜单排版失败，请重试。');
+      for(let col=0;col<columns.length;col++){
+        let y=top;const x=M+col*(COL+GAP);
+        for(const {block,prefix} of columns[col]){
+          y=this.drawCategoryLines([...prefix,...block.lines],x,y,block.index%2?this.t.secondary:this.t.primary);
+        }
+      }
+      this.y=this.bottom;
+    }
+    drawCategoryLines(lines,x,y,color){
       let yy=y;
-      for(const line of block.lines){
+      for(const line of lines){
         if(line.categoryHeading){
-          this.current.commands.push({type:'rect',x,y:yy,width:COL,height:line.height,fill:BG.category,stroke:color});
-          this.current.commands.push({type:'rect',x,y:yy,width:4,height:line.height,fill:color});
-          this.draw(line.categoryHeading,x+14,yy+8);
+          this.commands.push({type:'rect',x,y:yy,width:COL,height:line.height,fill:BG.category,stroke:color});
+          this.commands.push({type:'rect',x,y:yy,width:4,height:line.height,fill:color});
+          this.draw(line.categoryHeading,x+12,yy+5);
         }else this.draw([line],x,yy);
         yy+=line.height;
       }
-      this.current.bottom=Math.max(this.current.bottom,yy);
+      this.bottom=Math.max(this.bottom,yy);return yy;
     }
     finish(){
-      const total=this.pages.length,t=this.t;
-      return this.pages.map((page,index)=>{
-        const canvas=document.createElement('canvas');canvas.width=W;canvas.height=Math.min(MAX_H,Math.max(820,Math.ceil(page.bottom+FOOTER)));
-        const ctx=canvas.getContext('2d');if(!ctx)throw Error('此浏览器不支持图片绘制。');
-        ctx.fillStyle=BG.paper;ctx.fillRect(0,0,W,canvas.height);
-        for(const command of page.commands){
-          if(command.type==='text'){font(ctx,command.size,command.weight,command.family);ctx.fillStyle=command.color;ctx.fillText(command.text,command.x,command.y);}
-          else if(command.type==='rect'){
-            ctx.fillStyle=command.fill;ctx.fillRect(command.x,command.y,command.width,command.height);
-            if(command.stroke){ctx.strokeStyle=command.stroke;ctx.lineWidth=1.5;ctx.strokeRect(command.x,command.y,command.width,command.height);}
-          }else if(command.type==='line'){
-            ctx.strokeStyle=command.color;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(command.x,command.y);ctx.lineTo(command.x+command.width,command.y);ctx.stroke();
-          }else if(command.type==='logo')drawLogo(ctx,command.x,command.y);
-        }
-        const fy=canvas.height-30;
-        ctx.strokeStyle=mix(t.primary,BG.paper,.28);ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(M,fy-23);ctx.lineTo(W-M,fy-23);ctx.stroke();
-        ctx.fillStyle=t.muted;font(ctx,18);
-        ctx.fillText(this.menu.is_demo?`${BRAND_NAME} · 虚构示例`:BRAND_NAME,M,fy);
-        ctx.textAlign='right';ctx.fillText(`${String(index+1).padStart(2,'0')} / ${String(total).padStart(2,'0')}`,W-M,fy);ctx.textAlign='left';
-        return canvas;
-      });
+      const imageHeight=Math.max(420,Math.ceil(this.bottom+FOOTER));
+      // Browser canvas limits vary; this conservative bound keeps normal long
+      // restaurant menus to a single PNG without allocating a blank giant image.
+      if(imageHeight>MAX_H)throw Error('菜单内容过多，暂时无法保存为一张图片。请拆分上传后重试。');
+      const canvas=document.createElement('canvas');canvas.width=W;canvas.height=imageHeight;
+      const ctx=canvas.getContext('2d');if(!ctx)throw Error('此浏览器不支持图片绘制。');
+      ctx.fillStyle=BG.paper;ctx.fillRect(0,0,W,canvas.height);
+      for(const command of this.commands){
+        if(command.type==='text'){font(ctx,command.size,command.weight,command.family);ctx.fillStyle=command.color;ctx.fillText(command.text,command.x,command.y);}
+        else if(command.type==='rect'){
+          ctx.fillStyle=command.fill;ctx.fillRect(command.x,command.y,command.width,command.height);
+          if(command.stroke){ctx.strokeStyle=command.stroke;ctx.lineWidth=1.5;ctx.strokeRect(command.x,command.y,command.width,command.height);}
+        }else if(command.type==='line'){
+          ctx.strokeStyle=command.color;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(command.x,command.y);ctx.lineTo(command.x+command.width,command.y);ctx.stroke();
+        }else if(command.type==='logo')drawLogo(ctx,command.x,command.y);
+      }
+      const fy=canvas.height-24;
+      ctx.strokeStyle=mix(this.t.primary,BG.paper,.28);ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(M,fy-21);ctx.lineTo(W-M,fy-21);ctx.stroke();
+      ctx.fillStyle=this.t.muted;font(ctx,18);ctx.fillText(this.menu.is_demo?`${BRAND_NAME} · 虚构示例`:BRAND_NAME,M,fy);
+      return [canvas];
     }
   }
   function drawLogo(ctx,x,y){
@@ -285,67 +286,20 @@
       if(document.fonts?.ready)await document.fonts.ready;
     }catch(error){throw Error('菜单字体加载失败，请检查网络后重试。');}
     const measure=document.createElement('canvas').getContext('2d');if(!measure)throw Error('此浏览器不支持图片绘制。');
-    const out=new Layout(menu,themeFrom(options.theme),measure),t=out.t;
+    const out=new Layout(menu,themeFrom(options.theme),measure);
     if((menu.pricing||[]).length)out.prices(menu.pricing);
-    if((menu.rules||[]).length){
-      const lines=[];for(const rule of menu.rules){
-        const detail=window.MenuDesign?.presentMenu?cleanText(rule.detail):menuNote(rule.detail);if(!detail)continue;
-        const label=rule.label?`${cleanText(rule.label)}：`:'';
-        lines.push(...out.rich(emphasisParts(label+detail),INNER-32,{size:22,lineHeight:31,color:t.muted}),gap(3));
-      }
-      if(lines.length)out.flow(lines,{fill:BG.rules,stroke:mix(t.primary,BG.paper,.28),after:18});
-    }
+    out.rules(menu.rules||[]);
     out.categoryColumns((menu.categories||[]).filter(c=>(c.items||[]).length));
     return out.finish();
   }
   function blobFromCanvas(canvas) {
     return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('图片生成失败，请重试。')), 'image/png'));
   }
-  let crcTable;
-  function crc32(bytes) {
-    if (!crcTable) crcTable = Array.from({ length: 256 }, (_, n) => {
-      let c = n; for (let i = 0; i < 8; i++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0;
-    });
-    let crc = 0xffffffff;
-    for (const b of bytes) crc = crcTable[(crc ^ b) & 255] ^ (crc >>> 8);
-    return (crc ^ 0xffffffff) >>> 0;
-  }
-  function makeZip(entries) {
-    const encoder = new TextEncoder(), locals = [], directory = [];
-    let offset = 0, centralSize = 0;
-    const now = new Date();
-    const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
-    const dosDate = ((Math.max(1980, now.getFullYear()) - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
-    for (const entry of entries) {
-      const name = encoder.encode(entry.name), data = entry.data, crc = crc32(data);
-      const local = new Uint8Array(30 + name.length), lv = new DataView(local.buffer);
-      lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0x800, true);
-      lv.setUint16(10, dosTime, true); lv.setUint16(12, dosDate, true); lv.setUint32(14, crc, true);
-      lv.setUint32(18, data.length, true); lv.setUint32(22, data.length, true); lv.setUint16(26, name.length, true); local.set(name, 30);
-      const central = new Uint8Array(46 + name.length), cv = new DataView(central.buffer);
-      cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true); cv.setUint16(8, 0x800, true);
-      cv.setUint16(12, dosTime, true); cv.setUint16(14, dosDate, true); cv.setUint32(16, crc, true);
-      cv.setUint32(20, data.length, true); cv.setUint32(24, data.length, true); cv.setUint16(28, name.length, true);
-      cv.setUint32(42, offset, true); central.set(name, 46);
-      locals.push(local, data); directory.push(central); offset += local.length + data.length; centralSize += central.length;
-    }
-    const end = new Uint8Array(22), ev = new DataView(end.buffer);
-    ev.setUint32(0, 0x06054b50, true); ev.setUint16(8, entries.length, true); ev.setUint16(10, entries.length, true);
-    ev.setUint32(12, centralSize, true); ev.setUint32(16, offset, true);
-    return new Blob([...locals, ...directory, end], { type: 'application/zip' });
-  }
   async function download(canvases, filename = '我的中文菜单') {
     if (!Array.isArray(canvases) || !canvases.length) throw new Error('还没有可下载的图片。');
     const safe = string(filename).replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/[. ]+$/g, '').slice(0, 100) || '中文菜单';
-    const blobs = [];
-    for (const canvas of canvases) blobs.push(await blobFromCanvas(canvas));
-    let blob, name;
-    if (blobs.length === 1) { blob = blobs[0]; name = `${safe}.png`; }
-    else {
-      const entries = [];
-      for (let i = 0; i < blobs.length; i++) entries.push({ name: `${safe}_${String(i + 1).padStart(2, '0')}.png`, data: new Uint8Array(await blobs[i].arrayBuffer()) });
-      blob = makeZip(entries); name = `${safe}_${blobs.length}张菜单图.zip`;
-    }
+    if(canvases.length!==1)throw new Error('请重新生成菜单后下载单张图片。');
+    const blob=await blobFromCanvas(canvases[0]),name=`${safe}.png`;
     const url = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
