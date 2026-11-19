@@ -1,0 +1,406 @@
+{
+  "restaurant": "KOME 日料小馆",
+  "subtitle": "",
+  "summary": "虚构菜单排版示例",
+  "menu_type": "ayce",
+  "pricing": [
+    {
+      "label": "工作日午餐 / 每人",
+      "value": "$28.99",
+      "note": "周一至周五 11:30–15:00",
+      "source": "虚构示例 · 第 1 页"
+    },
+    {
+      "label": "工作日晚餐 / 每人",
+      "value": "$38.99",
+      "note": "周一至周四 17:00–22:00",
+      "source": "虚构示例 · 第 1 页"
+    },
+    {
+      "label": "周末套餐 / 每人",
+      "value": "$42.99",
+      "note": "周五晚餐及周六、周日全天",
+      "source": "虚构示例 · 第 1 页"
+    }
+  ],
+  "rules": [
+    {
+      "label": "用餐时限",
+      "detail": "每人价均未含税。午餐 90 分钟；晚餐及周末 120 分钟；结束前 15 分钟停止点单。",
+      "source": "虚构示例 · 第 1 页"
+    },
+    {
+      "label": "用餐规则",
+      "detail": "同桌同套餐，饮料另付。明显剩食 $5 / 份；6 人及以上另加 20% 服务费。",
+      "source": "虚构示例 · 第 1 页"
+    },
+    {
+      "label": "供应限制",
+      "detail": "刺身仅晚餐 / 周末提供，每轮每人最多 3 份。菜品加价与供应限制见括号。",
+      "source": "虚构示例 · 第 1 页"
+    }
+  ],
+  "categories": [
+    {
+      "title": "刺身",
+      "subtitle": "",
+      "items": [
+        {
+          "id": "S01",
+          "order_code": "S01",
+          "translated_name": "三文鱼刺身",
+          "original_name": "Salmon Sashimi",
+          "description": "3 片",
+          "price": "",
+          "surcharge": "",
+          "availability": "晚餐 / 周末",
+          "tags": [],
+          "source": "虚构示例 · 第 2 页",
+          "needs_verification": false
+        },
+        {
+          "id": "S02",
+          "order_code": "S02",
+          "translated_name": "金枪鱼刺身",
+          "original_name": "Tuna Sashimi",
+          "description": "3 片",
+          "price": "",
+          "surcharge": "",
+          "availability": "晚餐 / 周末",
+          "tags": [],
+          "source": "虚构示例 · 第 2 页",
+          "needs_verification": false
+        },
+        {
+          "id": "S03",
+          "order_code": "S03",
+          "translated_name": "北极贝刺身",
+          "original_name": "Surf Clam Sashimi",
+          "description": "3 片",
+          "price": "",
+          "surcharge": "",
+          "availability": "晚餐 / 周末",
+          "tags": [],
+          "source": "虚构示例 · 第 2 页",
+          "needs_verification": false
+        },
+        {
+          "id": "S04",
+          "order_code": "S04",
+          "translated_name": "甜虾刺身",
+          "original_name": "Sweet Shrimp Sashimi",
+          "description": "2 只",
+          "price": "",
+          "surcharge": "",
+          "availability": "晚餐 / 周末",
+          "tags": [],
+          "source": "虚构示例 · 第 2 页",
+          "needs_verification": false
+        }
+      ]
+    },
+    {
+      "title": "握寿司",
+      "subtitle": "",
+      "items": [
+        {
+          "id": "N01",
+          "order_code": "N01",
+          "translated_name": "三文鱼握寿司",
+          "original_name": "Salmon Nigiri",
+          "description": "2 贯",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 2 页",
+          "needs_verification": false
+        },
+        {
+          "id": "N02",
+          "order_code": "N02",
+          "translated_name": "金枪鱼握寿司",
+          "original_name": "Tuna Nigiri",
+          "description": "2 贯",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 2 页",
+          "needs_verification": false
+        },
+        {
+          "id": "N03",
+          "order_code": "N03",
+          "translated_name": "鳗鱼握寿司",
+          "original_name": "Unagi Nigiri",
+          "description": "2 贯",
+          "price": "",
+          "surcharge": "+$3 / 份",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 2 页",
+          "needs_verification": false
+        },
+        {
+          "id": "N04",
+          "order_code": "N04",
+          "translated_name": "玉子握寿司",
+          "original_name": "Tamago Nigiri",
+          "description": "日式煎蛋，2 贯",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 2 页",
+          "needs_verification": false
+        }
+      ]
+    },
+    {
+      "title": "寿司卷",
+      "subtitle": "",
+      "items": [
+        {
+          "id": "R01",
+          "order_code": "R01",
+          "translated_name": "加州卷",
+          "original_name": "California Roll",
+          "description": "蟹柳、牛油果、黄瓜，4 件",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 3 页",
+          "needs_verification": false
+        },
+        {
+          "id": "R02",
+          "order_code": "R02",
+          "translated_name": "辣金枪鱼卷",
+          "original_name": "Spicy Tuna Roll",
+          "description": "金枪鱼、辣酱，4 件",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 3 页",
+          "needs_verification": false
+        },
+        {
+          "id": "R03",
+          "order_code": "R03",
+          "translated_name": "炸虾卷",
+          "original_name": "Shrimp Tempura Roll",
+          "description": "炸虾、黄瓜、蛋黄酱，4 件",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 3 页",
+          "needs_verification": false
+        },
+        {
+          "id": "R04",
+          "order_code": "R04",
+          "translated_name": "牛油果黄瓜卷",
+          "original_name": "Avocado Cucumber Roll",
+          "description": "牛油果、黄瓜，4 件",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 3 页",
+          "needs_verification": false
+        }
+      ]
+    },
+    {
+      "title": "烤物与热菜",
+      "subtitle": "",
+      "items": [
+        {
+          "id": "G01",
+          "order_code": "G01",
+          "translated_name": "照烧鸡肉",
+          "original_name": "Chicken Teriyaki",
+          "description": "照烧汁鸡肉，小份",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 3 页",
+          "needs_verification": false
+        },
+        {
+          "id": "G02",
+          "order_code": "G02",
+          "translated_name": "盐烤三文鱼下巴",
+          "original_name": "Salmon Kama",
+          "description": "盐烤，1 件",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 3 页",
+          "needs_verification": false
+        },
+        {
+          "id": "G03",
+          "order_code": "G03",
+          "translated_name": "和牛串",
+          "original_name": "Wagyu Skewer",
+          "description": "1 串",
+          "price": "",
+          "surcharge": "+$6 / 份",
+          "availability": "晚餐 / 周末",
+          "tags": [],
+          "source": "虚构示例 · 第 3 页",
+          "needs_verification": false
+        },
+        {
+          "id": "G04",
+          "order_code": "G04",
+          "translated_name": "日式炒乌冬",
+          "original_name": "Yaki Udon",
+          "description": "蔬菜炒乌冬，小份",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 3 页",
+          "needs_verification": false
+        }
+      ]
+    },
+    {
+      "title": "小食与炸物",
+      "subtitle": "",
+      "items": [
+        {
+          "id": "A01",
+          "order_code": "A01",
+          "translated_name": "盐水毛豆",
+          "original_name": "Edamame",
+          "description": "轻盐调味，小份",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 4 页",
+          "needs_verification": false
+        },
+        {
+          "id": "A02",
+          "order_code": "A02",
+          "translated_name": "日式炸鸡",
+          "original_name": "Chicken Karaage",
+          "description": "3 块",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 4 页",
+          "needs_verification": false
+        },
+        {
+          "id": "A03",
+          "order_code": "A03",
+          "translated_name": "虾天妇罗",
+          "original_name": "Shrimp Tempura",
+          "description": "薄衣炸虾，2 只",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 4 页",
+          "needs_verification": false
+        },
+        {
+          "id": "A04",
+          "order_code": "A04",
+          "translated_name": "章鱼小丸子",
+          "original_name": "Takoyaki",
+          "description": "3 个",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 4 页",
+          "needs_verification": false
+        }
+      ]
+    },
+    {
+      "title": "甜品",
+      "subtitle": "",
+      "items": [
+        {
+          "id": "D01",
+          "order_code": "D01",
+          "translated_name": "抹茶冰淇淋",
+          "original_name": "Matcha Ice Cream",
+          "description": "1 球",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 4 页",
+          "needs_verification": false
+        },
+        {
+          "id": "D02",
+          "order_code": "D02",
+          "translated_name": "黑芝麻冰淇淋",
+          "original_name": "Black Sesame Ice Cream",
+          "description": "1 球",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 4 页",
+          "needs_verification": false
+        },
+        {
+          "id": "D03",
+          "order_code": "D03",
+          "translated_name": "香草冰淇淋",
+          "original_name": "Vanilla Ice Cream",
+          "description": "1 球",
+          "price": "",
+          "surcharge": "",
+          "availability": "",
+          "tags": [],
+          "source": "虚构示例 · 第 4 页",
+          "needs_verification": false
+        },
+        {
+          "id": "D04",
+          "order_code": "D04",
+          "translated_name": "大福",
+          "original_name": "Mochi",
+          "description": "1 件",
+          "price": "",
+          "surcharge": "",
+          "availability": "晚餐 / 周末",
+          "tags": [],
+          "source": "虚构示例 · 第 4 页",
+          "needs_verification": false
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "餐厅、菜品、价格和规则均为虚构，仅供体验。"
+  ],
+  "coverage": {
+    "total_pages": 4,
+    "processed_pages": 4,
+    "notes": [
+      "示例完整展示 24 道菜，不用于真实点餐。"
+    ]
+  },
+  "source_label": "虚构菜单示例",
+  "generated_at": "2026-11-18T20:00:00Z",
+  "is_demo": true
+}
