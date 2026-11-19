@@ -2,15 +2,17 @@
 
 把餐厅菜单网址、PDF 或照片整理成紧凑的中文分类菜单。保留原文菜名、编号、价格和套餐限制，用固定浅色背景、五套文字与边框配色导出 PNG。长菜单自动分页，多张图片打包为 ZIP。
 
-## v0.2.1：更新已经部署的网站
+## v0.2.2：分批上传更新
 
-下载并解压 `MenuFold_Update_v0.2.1.zip`，把其中的 `server.py`、`menu_contract.py` 和整个 `web` 文件夹上传到 GitHub 仓库根目录，保留文件夹结构并覆盖同名文件。`web/fonts` 内的字体也要一并上传。Render 部署最新提交后，刷新网页并重新提交原菜单；先前下载的图片不会自动更新。
+下载并完整解压 `MenuFold_Update_v0.2.2.zip`。进入 `01_upload`，把里面的全部文件及 `web` 文件夹上传到 GitHub 仓库首页，提交保存。再依次进入 `02_upload`、`03_upload` 等编号文件夹，用相同方法上传各自里面的内容；每批都从仓库根目录上传。编号文件夹用于分批操作，真正的项目文件路径仍是 `server.py`、`menu_contract.py`、`web/index.html`、`web/fonts/chunks/...`。
 
-这一版默认使用字体搭配 B：餐厅标题、分类标题与中文菜名使用 MenuFold Serif 粗宋体；编号、英文、备注、价格与品牌标识使用 MenuFold Sans 黑体。所需的三份字体及授权说明都随网页打包。
+全部批次提交后，在 Render 部署最新提交，再按 Ctrl+Shift+R 刷新网页并重新生成菜单。分批包已限制单个文件和每批总大小。字体 B 不变；中文字库按字符范围拆成小文件，保留完整字符覆盖，浏览器按实际菜单文字加载所需部分。导出会等待菜单涉及的字形加载完成。
+
+这一版默认使用字体搭配 B：餐厅标题、分类标题与中文菜名使用 MenuFold Serif 粗宋体；编号、英文、备注、价格与品牌标识使用 MenuFold Sans 黑体。所需的三个字重已拆成小型字库文件，授权说明随网页打包。
 
 识别流程把模型提取与最终菜单分开：API 只返回固定 JSON 字段，程序整理套餐价格、单品价格和重复菜品，再填入固定模板。菜单图片不再打印识别分析、缺失字段解释、核对清单、来源索引或处理覆盖报告。原菜单没写的可选信息留空；真实金额、份量、时段及加价仍保留。核对信息只留在网页折叠详情中。
 
-网页和导出使用同一套项目字体：`MenuFold Serif` 700 与 `MenuFold Sans` 400/700，绘制前先加载。离线预览内嵌同样字体，不依赖使用者电脑上的中文字体。菜单采用三栏独立紧凑排版，长菜单自动续栏和分页。
+网页和导出使用同一套项目字体：`MenuFold Serif` 700 与 `MenuFold Sans` 400/700，绘制前先加载。离线预览内嵌同样字体，不依赖使用者电脑上的中文字体。菜单采用三栏独立紧凑排版，长菜单自动续栏和分页。大字库文件已从新版部署包中移除，字形按 Unicode 范围分片提供。
 
 
 ## 五步上线，拿到可分享的网址
@@ -18,7 +20,7 @@
 使用 **GitHub + Render**：网页与识别接口放在同一个服务，不需要另外买域名、租数据库或拆分前后端。项目已附好 `render.yaml`，按下面步骤创建即可；当前代码尚未实际发布到 Render。
 
 1. 在 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 创建 API Key，并确认账户有可用余额；余额不足时需在平台充值。Key 只填在下面 Render 的服务器配置中，不要发到聊天、写进 HTML 或上传到 GitHub。
-2. 在 [GitHub](https://github.com/new) 新建仓库（私有仓库也可以），上传本项目的文件。打开仓库首页应直接看到 `render.yaml`、`requirements.txt`、`start.py`、`server.py` 和 `web` 文件夹，不能再套一层 `menufold` 文件夹。不要上传 `.env` 或 `.venv`。
+2. 在 [GitHub](https://github.com/new) 新建仓库（私有仓库也可以），按上方编号文件夹分批上传本项目文件。完整源码包含较多字体小文件，通过 GitHub 网页操作时请使用分批更新包。打开仓库首页应直接看到 `render.yaml`、`requirements.txt`、`start.py`、`server.py` 和 `web` 文件夹，不能再套一层 `menufold` 文件夹。不要上传 `.env` 或 `.venv`。
 3. 登录 [Render 控制台](https://dashboard.render.com/)，选择 **New → Blueprint**，连接 GitHub 并选择刚才的仓库。保留默认的 `render.yaml` 路径，选好分支。
 4. 在配置页的 `DEEPSEEK_API_KEY` 输入框填入自己的 Key。检查预览只有一个 Python Web Service，套餐为 **Free**，然后点击 **Deploy Blueprint**。模型、启动命令、健康检查和试用限额已写好，不需要逐项手填。
 5. 等服务状态变为 **Live**，打开服务页显示的 `https://你的服务名.onrender.com`。先试示例导出，再提交一份短菜单，核对菜名、价格和套餐说明；成功后把这个 HTTPS 网址分享给朋友。`/api/health` 仅确认服务与配置状态，不代表模型调用已经成功。

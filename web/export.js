@@ -254,11 +254,36 @@
     ctx.strokeStyle='#fffaf2';ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x+14,y+15);ctx.lineTo(x+29,y+8);ctx.moveTo(x+16,y+19);ctx.lineTo(x+32,y+12);ctx.stroke();
     font(ctx,31,700,FONT_SANS);ctx.fillStyle=BRAND;ctx.fillText(BRAND_NAME,x+54,y+32);ctx.restore();
   }
+  function printableFontText(menu){
+    // unicode-range faces load only the chunks used by the supplied text. Keep
+    // every printable code point, including generated labels, without repeating
+    // long menu fields or pulling source images/audit data into font requests.
+    const characters=new Set(),add=value=>{for(const character of string(value))characters.add(character);};
+    add(`${BRAND_NAME} · 虚构示例未命名餐厅其他菜品未命名菜品续0123456789 /：；（）`);
+    add(cleanText(menu.restaurant));
+    for(const price of menu.pricing||[]){add(cleanText(price.label));add(cleanText(price.value));add(menuNote(price.note));}
+    for(const rule of menu.rules||[]){
+      add(cleanText(rule.label));add(window.MenuDesign?.presentMenu?cleanText(rule.detail):menuNote(rule.detail));
+    }
+    for(const category of menu.categories||[]){
+      if(!(category.items||[]).length)continue;
+      add(cleanText(category.title));add(menuNote(category.subtitle));
+      for(const part of category.shared_notes||[])add(menuNote(part.text));
+      for(const item of category.items||[]){
+        add(item.order_code);add(cleanText(item.translated_name||item.original_name));add(cleanText(item.original_name));
+        for(const part of noteParts(item))add(part.text);
+      }
+    }
+    return [...characters].join('');
+  }
   async function render(menu,options={}){
     if(!menu||typeof menu!=='object')throw Error('还没有可导出的菜单。');
     if(window.MenuDesign?.presentMenu)menu=window.MenuDesign.presentMenu(menu);
-    if(document.fonts?.load)await Promise.all([document.fonts.load('400 24px "MenuFold Sans"'),document.fonts.load('700 35px "MenuFold Sans"'),document.fonts.load('700 35px "MenuFold Serif"')]);
-    if(document.fonts?.ready)await document.fonts.ready;
+    const fontText=printableFontText(menu);
+    try{
+      if(document.fonts?.load)await Promise.all([document.fonts.load('400 24px "MenuFold Sans"',fontText),document.fonts.load('700 35px "MenuFold Sans"',fontText),document.fonts.load('700 35px "MenuFold Serif"',fontText)]);
+      if(document.fonts?.ready)await document.fonts.ready;
+    }catch(error){throw Error('菜单字体加载失败，请检查网络后重试。');}
     const measure=document.createElement('canvas').getContext('2d');if(!measure)throw Error('此浏览器不支持图片绘制。');
     const out=new Layout(menu,themeFrom(options.theme),measure),t=out.t;
     if((menu.pricing||[]).length)out.prices(menu.pricing);
