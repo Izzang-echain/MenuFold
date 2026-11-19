@@ -20,18 +20,116 @@
     if(last<text.length)parts.push({text:text.slice(last)});
     return parts.length?parts:[{text}];
   }
-  function noteParts(item){
-    const fields=[
+  const text=value=>String(value??'').replace(/\s+/g,' ').trim();
+  const noteKey=value=>{
+    const key=text(value).toLowerCase().replace(/^(?:价格|售价)\s*[:：]?\s*/,'').replace(/^(?:加价|另加|加收|加购|追加|附加)\s*[:：]?\s*[+＋]?\s*/,'+').replace(/＋/g,'+').replace(/[\s，,。;；!！?？“”‘’"'（）()·_]/g,'').replace(/\.+$/,'');
+    return /^(?:new|新品|新款)$/.test(key)?'new':/^(?:seasonal|季节性?供应)$/.test(key)?'seasonal':key;
+  };
+  function noteClauses(value){
+    // Split complete clauses, never at decimal points or thousands separators.
+    return text(value).split(/[。；;!?！？\n]+|[，,](?!\d)|\.(?=\s+[A-Za-z\u4e00-\u9fff]|$)/).map(text).filter(Boolean);
+  }
+  function diagnosticClause(value){
+    return /^(?:[-—–]+|未知|不详|暂无|无|未标注|未注明|未说明|未提供|未识别|未显示|待确认|待核对|待核实|N\/?A|unknown|not\s+(?:specified|provided|shown))$/i.test(value)
+      || /^(?:未|没有)(?:标明|说明|提供|注明|标注|显示|给出|列出|识别|写|用文字(?:说明|标注)|能确认|能确定)/.test(value)
+      || /^(?:价格|售价|份量|分量|容量|配料|原料|食材|编号|辣度|口味|时段|套餐条件)(?:均|尚|暂)?(?:未标明|未说明|未提供|未注明|未标注|未知|不详|需询问|需咨询)/.test(value)
+      || /^(?:本|此|先前|上一)(?:次|批次|批|页|页面|图片|段)(?:中|内)?[^。；;]*(?:未|没有|识别|出现|提取|覆盖|列出)/.test(value)
+      || /^(?:图片显示|图中可见|从图片来看|图片中|照片显示|看图|据图|由图片|根据图片|菜单中文标注|菜单上标注)/.test(value)
+      || /^(?:菜单|原菜单|原文|图中|图片|照片|页面|截图|原图|该页)(?:中|上)?[^。；;]*(?:仅写|只写|仅列|只列|未提供|未说明|未写|没有|未标|无法|看不|不清|不明确|显示|展示|可见|推测|似为|标注为|标示为)/.test(value)
+      || /^(?:来源|识别结果|识别说明|翻译说明|置信度|OCR|source|needs_verification)\s*[:：]/i.test(value)
+      || /^(?:第\s*\d+\s*页|page\s*\d+)(?:\s*[/·-]\s*(?:第?\s*\d+\s*页?|page\s*\d+))*$/i.test(value)
+      || /(?:识别|翻译|名称)(?:存疑|不清|不确定)|(?:需|待)(?:进一步)?(?:人工)?(?:核对|核实|确认)|^请(?:核对|核实|确认)(?:原|菜|图|价|名)|^请(?:向|咨询|询问).*(?:店员|服务员|餐厅)/.test(value)
+      || /^(?:menu|image|photo|source|this\s+batch)\b.*(?:shows?|states?|only|not|missing|unclear|unreadable|identified|recogniz|verif)/i.test(value);
+  }
+  function cleanNote(value,names=[]){
+    const nameKeys=new Set(names.map(noteKey).filter(Boolean)),seen=new Set(),result=[];
+    let source=String(value??'').replace(/[ \t\r]+/g,' ').trim().replace(/[（(]([^（）()]*)[）)]/g,(whole,inside)=>diagnosticClause(text(inside))?'':whole);
+    const clauses=[];
+    for(let sentence of source.split(/[。；;!?！？\n]+|\.(?=\s+[A-Za-z\u4e00-\u9fff]|$)/).map(text).filter(Boolean)){
+      sentence=sentence.replace(/^菜单(?:上)?标(?:注|示)为[“"‘']?(?:新品|新款|new)[”"’']?$/i,'新品');
+      // An explicit printed fact can retain its ingredient, amount or timing
+      // while its source-introduction is removed. Visual guesses are omitted.
+      sentence=sentence.replace(/^(?:菜单(?:上)?(?:明确)?(?:标注|标示|注明|写明))\s*(?:为|[:：])\s*/,'').replace(/^(?:原文|印刷说明|印刷文字)\s*[:：]\s*/,'').replace(/^菜单(?:上)?(?:明确)?(?:标注|注明|写明)\s*(?=每|含|不含|可选|限|仅|[+＋$€£¥￥\d])/,'').replace(/适用于本页所列/g,'适用于').trim();
+      if(/^(?:菜单[^，,。；;]*(?:展示|图片显示)|图片(?:显示|中)|图中可见|页面图片显示|照片显示|从图片来看|根据图片|看图|据图|由图片|(?:image|photo)\b.*shows?)/i.test(sentence)&&diagnosticClause(sentence)){
+        // Keep an explicitly attributed printed instruction, not the pictured
+        // ingredients or serving size that precede it.
+        const instruction=sentence.match(/并提示\s*[:：]?\s*(.+)$/);
+        if(instruction)clauses.push(...noteClauses(instruction[1]));
+        continue;
+      }
+      clauses.push(...noteClauses(sentence));
+    }
+    for(const clause of clauses){
+      const key=noteKey(clause);
+      if(!key||nameKeys.has(key)||seen.has(key)||diagnosticClause(clause))continue;
+      seen.add(key);result.push(clause);
+    }
+    return result.join('；');
+  }
+  function servingLabelsCovered(availability,prices){
+    const labels=noteClauses(availability).flatMap(value=>value.split(/\s*\/\s*/)).map(noteKey).filter(Boolean);
+    const servingPatterns={glass:/\bglass\b|单杯/i,单杯:/\bglass\b|单杯/i,pitcher:/\bpitcher\b|整壶/i,整壶:/\bpitcher\b|整壶/i,bottle:/\bbottle\b|瓶装/i,瓶装:/\bbottle\b|瓶装/i};
+    return labels.length>0&&labels.every(label=>servingPatterns[label]?.test(prices));
+  }
+  function presentItem(item={}){
+    const names=[item.original_name,item.translated_name,item.order_code];
+    const projected={...item,
+      description:cleanNote(item.description,names),
+      price:cleanNote(item.price,names).replace(/^(?:价格|售价)\s*[:：]?\s*/,''),
+      surcharge:cleanNote(item.surcharge,names).replace(/^加价\s*[:：]\s*/,''),
+      availability:cleanNote(item.availability,names),
+      tags:[...new Map((Array.isArray(item.tags)?item.tags:[]).map(value=>cleanNote(value,names)).filter(Boolean).map(value=>[noteKey(value),value])).values()],
+      source:'',needs_verification:false
+    };
+    if(servingLabelsCovered(projected.availability,projected.price+' '+projected.surcharge))projected.availability='';
+    return projected;
+  }
+  function presentCategory(category){
+    const items=(Array.isArray(category.items)?category.items:[]).map(presentItem),shared={};
+    if(items.length>1)for(const field of ['price','surcharge','availability']){
+      const value=items[0][field];
+      if(value&&items.every(item=>item[field]===value)){
+        shared[field]=value;
+        for(const item of items)item[field]='';
+      }
+    }
+    const previous=Array.isArray(category.shared_notes)?category.shared_notes.map(part=>({...part})):[],next=noteParts(shared);
+    return {...category,items,shared_notes:[...previous,...(previous.length&&next.length?[{text:'；'}]:[]),...next]};
+  }
+  function ruleText(value){
+    const result=text(value);
+    // Typed rules are printed restaurant conditions. Unlike item captions,
+    // asking staff can be an actual menu instruction and must stay intact.
+    if(/^(?:本批次|先前批次|上一批次|识别说明|识别结果|来源索引|覆盖说明|needs_verification|reasoning|this batch)/i.test(result))return '';
+    if(/^(?:菜单|原菜单|该页|本页)(?:中|上)?(?:未|没有)(?:标注|注明|说明|提供)/.test(result))return '';
+    return result;
+  }
+  function presentMenu(menu={}){
+    // This is the common screen/export view. The original response remains
+    // available separately for source review; no input object is changed.
+    return {...menu,
+      pricing:(Array.isArray(menu.pricing)?menu.pricing:[]).map(price=>({...price,label:cleanNote(price.label),value:cleanNote(price.value).replace(/^(?:价格|售价)\s*[:：]?\s*/,''),note:cleanNote(price.note),source:''})).filter(price=>price.value),
+      rules:(Array.isArray(menu.rules)?menu.rules:[]).map(rule=>({...rule,label:ruleText(rule.label),detail:ruleText(rule.detail),source:''})).filter(rule=>rule.detail),
+      categories:(Array.isArray(menu.categories)?menu.categories:[]).map(presentCategory),
+      warnings:[],coverage:{...menu.coverage,notes:[]},source_label:''
+    };
+  }
+  function noteParts(rawItem){
+    const item=presentItem(rawItem),fields=[
       {text:item.description,em:false},
-      {text:item.price?'价格 '+item.price:'',em:true},
-      {text:item.surcharge?'加价 '+item.surcharge:'',em:true},
+      {text:item.price,em:true},
+      {text:item.surcharge?(/^(?:[+＋]|加价|另加|加收|加购|追加|附加|额外|extra\b|additional\b|surcharge\b)/i.test(item.surcharge)?item.surcharge:'加价 '+item.surcharge):'',em:true},
       {text:item.availability,em:true},
-      {text:Array.isArray(item.tags)?item.tags.join(' · '):'',em:false},
-      {text:item.needs_verification?'识别存疑，请核对':'',em:true}
+      ...item.tags.map(value=>({text:value,em:false}))
     ];
     const seen=new Set(),parts=[];
-    for(const field of fields){const value=String(field.text??'').trim();if(!value||seen.has(value))continue;seen.add(value);if(parts.length)parts.push({text:'；'});parts.push({text:value,em:field.em});}
+    for(const name of [item.original_name,item.translated_name])if(/\bnew\b|新品|新款/i.test(name||''))seen.add('new');
+    for(const field of fields){
+      const clauses=noteClauses(field.text).filter(value=>{const key=noteKey(value);if(!key||seen.has(key))return false;seen.add(key);return true;});
+      if(!clauses.length)continue;
+      if(parts.length)parts.push({text:'；'});parts.push({text:clauses.join('；'),em:field.em});
+    }
     return parts;
   }
-  window.MenuDesign=Object.freeze({brand:'#e66e49',backgrounds,themes,mix,emphasisParts,noteParts});
+  window.MenuDesign=Object.freeze({brand:'#e66e49',backgrounds,themes,mix,emphasisParts,presentMenu,noteParts});
 })();

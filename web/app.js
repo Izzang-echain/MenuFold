@@ -38,25 +38,24 @@
     state.theme=state.bag.pop();applyTheme();
   }
   function renderMenu(){
-    const m=state.menu;if(!m)return;const count=items(m).length;
+    const raw=state.menu;if(!raw)return;const m=D.presentMenu(raw),count=items(m).length;
     $('#resultBadge').textContent=m.is_demo?'虚构示例':'整理结果';$('#resultBadge').classList.toggle('real',!m.is_demo);
-    $('#resultMeta').textContent=`${count} 道菜 · ${m.categories.length} 类 · 已处理 ${m.coverage.processed_pages}/${m.coverage.total_pages} 页/段`;
-    const warnings=[...m.warnings];
-    if(m.coverage.processed_pages<m.coverage.total_pages)warnings.unshift('本次存在未完成的页面，请对照原菜单核对遗漏。');
-    $('#notices').hidden=!warnings.length;
-    $('#notices').innerHTML=warnings.map(w=>'<p>↳ '+escape(w)+'</p>').join('');
-    $('#sourceInfo').innerHTML='<p>来源：'+escape(m.source_label||'未记录')+'</p>'+m.coverage.notes.map(n=>'<p>'+escape(n)+'</p>').join('')+'<p>已处理页数表示完成了识别请求，不代表已人工确认没有漏菜。价格、套餐范围和存疑项目请对照原菜单。</p>';
-    const originSources=[...new Set(m.categories.flatMap(c=>c.items.map(i=>i.source)).filter(Boolean))];
-    if(originSources.length)$('#sourceInfo').innerHTML+='<p>菜品来源：'+originSources.map(escape).join('；')+'</p>';
+    $('#resultMeta').textContent=`${count} 道菜 · ${m.categories.length} 类 · 中英对照`;
+    $('#notices').hidden=true;$('#notices').innerHTML='';
+    const audit=[...(raw.source_label?['来源：'+raw.source_label]:[]),`已处理 ${raw.coverage.processed_pages}/${raw.coverage.total_pages} 页/段`,...raw.coverage.notes,...raw.warnings];
+    if(raw.coverage.processed_pages<raw.coverage.total_pages)audit.push('本次存在未完成的页面，请对照原菜单核对遗漏。');
+    const originSources=[...new Set(raw.categories.flatMap(c=>c.items.map(i=>i.source)).filter(Boolean))];
+    if(originSources.length)audit.push('菜品来源：'+originSources.join('；'));
+    $('#sourceInfo').innerHTML=audit.map(note=>'<p>'+escape(note)+'</p>').join('');$('#sourceDetails').open=false;
     $('#menu').innerHTML=`
       <div class="menu-heading"><h3 class="restaurant">${escape(m.restaurant||'未命名餐厅')}</h3><div class="poster-logo" aria-label="MenuFold"><span class="poster-logo-icon"><svg width="23" height="23" aria-hidden="true"><use href="#bowl"/></svg></span>MenuFold</div></div>
-      ${m.pricing.length?'<div class="prices">'+m.pricing.map(p=>'<div><div class="price-label">'+escape(p.label)+'</div><div class="price-value">'+escape(p.value||'未注明')+'</div><div class="price-time">'+escape(p.note)+'</div></div>').join('')+'</div>':'<div class="no-pricing">未识别到套餐或统一收费信息，请核对原菜单及各菜品价格。</div>'}
-      <div class="rules">${m.rules.length?m.rules.map(r=>'<p><span class="rule-label">'+escape(r.label)+(r.label?'：':'')+'</span>'+partsHTML(D.emphasisParts(r.detail))+'</p>').join(''):'<p>菜单中未识别到明确用餐规则，请向店员确认。</p>'}</div>
-      <div class="categories">${m.categories.map((c,index)=>'<section class="category" data-category="'+index+'"><h4 class="category-title">'+escape(c.title)+'<small>'+c.items.length+' 道</small></h4>'+c.items.map(i=>{
+      ${m.pricing.length?'<div class="prices">'+m.pricing.map(p=>'<div>'+(p.label?'<div class="price-label">'+escape(p.label)+'</div>':'')+'<div class="price-value">'+escape(p.value)+'</div>'+(p.note?'<div class="price-time">'+escape(p.note)+'</div>':'')+'</div>').join('')+'</div>':''}
+      ${m.rules.length?'<div class="rules">'+m.rules.map(r=>'<p>'+(r.label?'<span class="rule-label">'+escape(r.label)+'：</span>':'')+partsHTML(D.emphasisParts(r.detail))+'</p>').join('')+'</div>':''}
+      <div class="categories">${m.categories.map((c,index)=>'<section class="category" data-category="'+index+'"><h4 class="category-title">'+escape(c.title)+'<small>'+c.items.length+' 道</small></h4>'+(c.shared_notes.length?'<div class="category-note">'+partsHTML(c.shared_notes)+'</div>':'')+c.items.map(i=>{
         const notes=D.noteParts(i);
-        return '<div class="item"><div class="item-main">'+(i.order_code?'<span class="item-code">'+escape(i.order_code)+'</span>':'')+'<span class="item-name">'+escape(i.translated_name||i.original_name||'名称待核对')+'</span></div><div class="item-en">'+escape(i.original_name)+(notes.length?' <span class="item-note">（'+partsHTML(notes)+'）</span>':'')+'</div></div>';
+        return '<div class="item"><div class="item-main">'+(i.order_code?'<span class="item-code">'+escape(i.order_code)+'</span>':'')+'<span class="item-name">'+escape(i.translated_name||i.original_name)+'</span></div><div class="item-en">'+escape(i.original_name)+(notes.length?' <span class="item-note">（'+partsHTML(notes)+'）</span>':'')+'</div></div>';
       }).join('')+'</section>').join('')}</div>
-      <div class="menu-footer"><span>${count} 道菜 · 中英对照 · 完整分类</span><span>${m.is_demo?'虚构示例，菜品、价格与规则仅供演示':'AI 整理，请核对原菜单；过敏原请询问店员。'}</span></div>`;
+      <div class="menu-footer"><span>${count} 道菜 · 中英对照</span>${m.is_demo?'<span>虚构示例，菜品、价格与规则仅供演示</span>':''}</div>`;
     applyTheme();$('#downloadButton').disabled=state.busy;
   }
   function setMenu(menu){state.menu=menu;clearError();renderMenu();}
