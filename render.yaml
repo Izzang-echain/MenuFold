@@ -1,0 +1,26 @@
+# 将本项目文件放在 GitHub 仓库根目录，然后在 Render 选择 New > Blueprint。
+services:
+  - type: web
+    name: menufold
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python start.py --host 0.0.0.0 --no-browser
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.12"
+      - key: MENU_PROVIDER
+        value: deepseek
+      - key: DEEPSEEK_MODEL
+        value: deepseek-flash
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: MENU_MAX_CONCURRENT
+        value: "1"
+      - key: MENU_DAILY_REQUEST_LIMIT
+        value: "30"
+      - key: MENU_CLIENT_HOURLY_LIMIT
+        value: "6"
+      - key: MENU_DAILY_MODEL_CALL_LIMIT
+        value: "100"
